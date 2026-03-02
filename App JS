@@ -1,0 +1,254 @@
+import React, { useState, useEffect } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMap,
+  LayersControl,
+} from "react-leaflet";
+import {
+  Shield,
+  Bluetooth,
+  AlertTriangle,
+  Clock,
+  MapPin,
+  Radio,
+} from "lucide-react";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+// EXACT COORDINATES: CMS College of Engineering and Technology Main Block
+const CMS_COORDINATES = { lat: 10.82436, lng: 76.89294 };
+
+const DefaultIcon = L.icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+
+const AccidentIcon = L.icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+  iconSize: [32, 48],
+  iconAnchor: [16, 48],
+});
+
+function RecenterMap({ coords }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([coords.lat, coords.lng], 19); // High-detail campus zoom
+  }, [coords, map]);
+  return null;
+}
+
+export default function RescueGuardDashboard() {
+  const [isBluetooth, setIsBluetooth] = useState(true);
+  const [isAccident, setIsAccident] = useState(false);
+  const [accidentData, setAccidentData] = useState(null);
+
+  const handleImpact = () => {
+    const time = new Date().toLocaleTimeString();
+    setIsAccident(true);
+    setAccidentData({ ...CMS_COORDINATES, time });
+
+    const msg = new SpeechSynthesisUtterance(
+      "Emergency! Impact detected at CMS College main block."
+    );
+    window.speechSynthesis.speak(msg);
+  };
+
+  return (
+    <div style={styles.container}>
+      {/* SIDEBAR UI */}
+      <div style={styles.sidebar}>
+        <div style={styles.brandSection}>
+          <Shield
+            className={isAccident ? "pulse-red" : "glow-green"}
+            color={isAccident ? "#ef4444" : "#22c55e"}
+            size={42}
+          />
+          <div>
+            <h2 style={styles.title}>RescueGuard AI</h2>
+            <span style={styles.subtitle}>CMSCET Kumittipathy Campus</span>
+          </div>
+        </div>
+
+        {isAccident ? (
+          <div style={styles.dangerCard}>
+            <AlertTriangle size={32} />
+            <h3 style={{ margin: "10px 0" }}>IMPACT DETECTED</h3>
+            <div style={styles.logDetail}>
+              <Clock size={14} /> {accidentData.time}
+            </div>
+            <div style={styles.logDetail}>
+              <MapPin size={14} /> Main Academic Block
+            </div>
+            <div style={styles.etaContainer}>RESCUE ETA: 5-7 MIN</div>
+          </div>
+        ) : (
+          <div style={styles.idleCard}>
+            <Radio size={22} className="spin" />
+            <p>System Monitoring Active</p>
+            <span style={{ fontSize: "11px", color: "#64748b" }}>
+              ESP32 Connected via {isBluetooth ? "BT" : "GSM"}
+            </span>
+          </div>
+        )}
+
+        <button
+          onClick={() => setIsBluetooth(!isBluetooth)}
+          style={styles.toggleBtn}
+        >
+          {isBluetooth ? "Switch to GSM Mode" : "Switch to Bluetooth"}
+        </button>
+
+        {!isAccident ? (
+          <button onClick={handleImpact} style={styles.triggerBtn}>
+            TRIGGER SIMULATION
+          </button>
+        ) : (
+          <button onClick={() => setIsAccident(false)} style={styles.clearBtn}>
+            RESET SYSTEM
+          </button>
+        )}
+      </div>
+
+      {/* SATELLITE MAP UI */}
+      <div style={{ flex: 1 }}>
+        <MapContainer
+          center={[CMS_COORDINATES.lat, CMS_COORDINATES.lng]}
+          zoom={19}
+          style={{ height: "100%" }}
+        >
+          <LayersControl position="topright">
+            <LayersControl.BaseLayer checked name="Satellite View">
+              <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer name="Street Map">
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            </LayersControl.BaseLayer>
+          </LayersControl>
+
+          <Marker
+            position={[CMS_COORDINATES.lat, CMS_COORDINATES.lng]}
+            icon={isAccident ? AccidentIcon : DefaultIcon}
+          >
+            <Popup>
+              <div style={{ textAlign: "center" }}>
+                <strong>CMS College of Eng & Tech</strong>
+                <br />
+                {isAccident ? (
+                  <span style={{ color: "red" }}>🚨 CRASH DETECTED</span>
+                ) : (
+                  "📍 System Status: OK"
+                )}
+              </div>
+            </Popup>
+          </Marker>
+
+          <RecenterMap coords={CMS_COORDINATES} />
+        </MapContainer>
+      </div>
+
+      <style>{`
+        .glow-green { filter: drop-shadow(0 0 5px #22c55e); }
+        .pulse-red { filter: drop-shadow(0 0 15px #ef4444); animation: pulse 0.8s infinite; }
+        .spin { animation: rotate 3s linear infinite; }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+      `}</style>
+    </div>
+  );
+}
+
+const styles = {
+  container: {
+    display: "flex",
+    height: "100vh",
+    backgroundColor: "#0f172a",
+    color: "#f8fafc",
+  },
+  sidebar: {
+    width: "360px",
+    padding: "30px",
+    background: "#1e293b",
+    display: "flex",
+    flexDirection: "column",
+    boxShadow: "5px 0 20px rgba(0,0,0,0.6)",
+    zIndex: 1000,
+  },
+  brandSection: {
+    display: "flex",
+    alignItems: "center",
+    gap: "15px",
+    marginBottom: "40px",
+  },
+  title: { margin: 0, fontSize: "24px", letterSpacing: "0.5px" },
+  subtitle: { fontSize: "12px", color: "#94a3b8" },
+  dangerCard: {
+    background: "#450a0a",
+    border: "2px solid #ef4444",
+    padding: "20px",
+    borderRadius: "15px",
+    textAlign: "center",
+    marginBottom: "20px",
+  },
+  idleCard: {
+    background: "#0f172a",
+    padding: "25px",
+    borderRadius: "15px",
+    textAlign: "center",
+    marginBottom: "20px",
+    color: "#f8fafc",
+    border: "1px solid #334155",
+  },
+  logDetail: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    marginTop: "8px",
+    fontSize: "14px",
+  },
+  etaContainer: {
+    background: "#ef4444",
+    color: "white",
+    padding: "10px",
+    borderRadius: "30px",
+    fontWeight: "bold",
+    marginTop: "15px",
+    fontSize: "14px",
+  },
+  triggerBtn: {
+    background: "#ef4444",
+    color: "white",
+    padding: "18px",
+    border: "none",
+    borderRadius: "12px",
+    fontWeight: "bold",
+    cursor: "pointer",
+    transition: "0.2s",
+  },
+  clearBtn: {
+    background: "transparent",
+    color: "#94a3b8",
+    padding: "14px",
+    border: "1px solid #475569",
+    borderRadius: "12px",
+    cursor: "pointer",
+  },
+  toggleBtn: {
+    background: "#334155",
+    color: "white",
+    border: "none",
+    padding: "12px",
+    borderRadius: "10px",
+    marginBottom: "20px",
+    cursor: "pointer",
+    fontSize: "13px",
+  },
+};
